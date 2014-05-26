@@ -18,13 +18,13 @@ first_blood = 0
 
 heroList = {}
 matchList = []
-hw = {}
+results = {}
 
 def main():
     print('Predictalyzer executing...')
 
     # generates json files for 4 pages of dotabuff
-    getMatches(8)
+    getMatches(0)
 
     # generates the dict heroList
     genHerolist()
@@ -36,41 +36,43 @@ def main():
                 maxGPMISG('matches/%s' %(filename))
                 latestFirstBlood('matches/%s' %(filename))
                 predictalyze('matches/%s' %(filename))
+                findPickBans('matches/%s' %(filename))
             except:
                 pass
+
+    for heroID, value in heroList.items():
+        heroName = heroList[heroID]['hero_name']
+        # most kills across qualifiers - hero
+        aggkills = sum(value['kills'])
+        if aggkills > results['max_agg_kills'][1]:
+            results['max_agg_kills'] = (heroName, aggkills)
+        # most deaths across qualifiers - hero
+        aggdeaths = sum(value['deaths'])
+        if aggdeaths > results['max_agg_deaths'][1]:
+            results['max_agg_deaths'] = (heroName, aggdeaths)
+        # most deaths assists qualifiers - hero
+        aggassists = sum(value['assists'])
+        if aggassists > results['max_agg_assists'][1]:
+            results['max_agg_assists'] = (heroName, aggassists)
+        # number of heroes never picked or banned
+        #print(heroName, value['picks'], value['bans'])
+        if value['picks'] + value['bans'] == 0:
+            if heroName not in results['never_pickban']:
+                results['never_pickban'].append(heroName)
 
     # prints results
     print('Most Kills in a Single Game -', max_klls_isg)
     print('Highest GPM in a Single Game -', max_gpm_isg)
     print('Latest First Blood - ', first_blood / 60)
-
-    for heroID in heroList:
-        findMost(heroID, 'kills')
-        findMost(heroID, 'deaths')
-        findMost(heroID, 'assists')
-        findMost(heroID, 'cs')
-        findMost(heroID, 'gpm')
-        findMost(heroID, 'tower_damage')
-        findMost(heroID, 'healing')
-        findMost(heroID, 'net_kills')
-        findMost(heroID, 'net_deaths')
-        findMost(heroID, 'net_assists')
-        findMost(heroID, 'picks')
-        findMost(heroID, 'bans')
+    #print('Most kills across qualifiers -', results['max_agg_kills'])
+    #print('Most deaths across qualifiers -', results['max_agg_deaths'])
+    #print('Most assists across qualifiers -', results['max_agg_assists'])
+    #print('Number of heroes never picked or banned -', len(results['never_pickban']))
 
     # creates output.json with the stats
     json.dump(heroList, open('output.json', 'w'))
 
-    for key, value in hw.items():
-        print('Hero with the most %s - %s with %s' %(key, value[0], value[1]))
-
-    #print('Hero with most kills in a single game -', hw_most_kills_name, hw_most_kills)
-    #print('Hero with most deaths in a single game -', hw_most_deaths_name, hw_most_deaths)
-    #print('Hero with most assists in a single game -', hw_most_assists_name, hw_most_assists)
-    #print('Hero with most Last Hits in a single game -', hw_most_cs_name, hw_most_cs)
-    #print('Hero with highest GPM in a single game -', hw_most_gpm_name, hw_most_gpm)
-    #print('Hero with most tower damage in a single game -', hw_most_twr_name, hw_most_twr)
-    #print('Hero with most healing in a single game -', hw_most_heal_name, hw_most_heal)
+    pp.pprint(results)
 
 # returns a list of matchIDs from http://dotabuff.com/matches/ti4
 # pages = int() - number of pages to get matchIDs from
@@ -107,23 +109,12 @@ def dlMatches(matches):
             pass
 
 # checks if string is all numbers
-def isNumber(s):
+def isNumber(string):
     try:
-        float(s)
+        float(string)
         return True
     except ValueError:
         return False
-
-# creates dict heroList with heroID as key
-# instantiate each dict with the hero's name
-def genHerolist():
-    with open('herolist.json', 'r+') as f:
-        data = json.load(f)
-        heroes = data['result']['heroes']
-        for hero in heroes:
-            heroID = hero['id']
-            heroName = hero['localized_name']
-            heroList[heroID] = {'hero_name': heroName}
 
 # in a single game
 # most kills (both teams) - int
@@ -161,116 +152,100 @@ def latestFirstBlood(jsonfile):
         if fbTime > first_blood:
             first_blood = fbTime
 
+# creates dict heroList with heroID as key
+# instantiate each dict with the hero's name
+def genHerolist():
+    with open('herolist.json', 'r+') as f:
+        data = json.load(f)
+        heroes = data['result']['heroes']
+        for hero in heroes:
+            heroID                           = hero['id']
+            heroName                         = hero['localized_name']
+            heroList[heroID]                 = {}
+            heroList[heroID]['hero_name']    = heroName
+            heroList[heroID]['kills']        = []
+            heroList[heroID]['deaths']       = []
+            heroList[heroID]['assists']      = []
+            heroList[heroID]['last_hits']    = []
+            heroList[heroID]['gold_per_min'] = []
+            heroList[heroID]['tower_damage'] = []
+            heroList[heroID]['hero_healing'] = []
+            heroList[heroID]['picks']        = 0
+            heroList[heroID]['bans']         = 0
+    # instantiates results
+    results['max_agg_kills']    = ('', 0)
+    results['max_agg_deaths']   = ('', 0)
+    results['max_agg_assists']  = ('', 0)
+    results['never_pickban']    = []
+    results['max_kills']        = ('', 0)
+    results['max_deaths']       = ('', 0)
+    results['max_assists']      = ('', 0)
+    results['max_last_hits']    = ('', 0)
+    results['max_gold_per_min'] = ('', 0)
+    results['max_tower_damage'] = ('', 0)
+    results['max_hero_healing'] = ('', 0)
+    results['max_picks']        = ('', 0)
+    results['max_bans']         = ('', 0)
+
 # gets data for hero with questions
 def predictalyze(jsonfile):
     with open(jsonfile, 'r+') as f:
         data = json.load(f)
         players = data['result']['players']
+
         for player in players:
             heroID = player['hero_id']
+            heroName = heroList[heroID]['hero_name']
 
-            # most kills - hero
-            current_kills = player['kills']
-            if 'kills' not in heroList[heroID]:
-                heroList[heroID]['kills'] = current_kills
+            # list of all kills per heroID
+            heroList[heroID]['kills'].append(player['kills'])
+            if player['kills'] > results['max_kills'][1]:
+                results['max_kills'] = (heroName, player['kills'])
+            # list of all deaths per heroID
+            heroList[heroID]['deaths'].append(player['deaths'])
+            if player['deaths'] > results['max_deaths'][1]:
+                results['max_deaths'] = (heroName, player['deaths'])
+            # list of all assists per heroID
+            heroList[heroID]['assists'].append(player['assists'])
+            if player['kills'] > results['max_assists'][1]:
+                results['max_assists'] = (heroName, player['assists'])
+            # list of all last hits per heroID
+            heroList[heroID]['last_hits'].append(player['last_hits'])
+            if player['last_hits'] > results['max_last_hits'][1]:
+                results['max_last_hits'] = (heroName, player['last_hits'])
+            # list of all gpm per heroID
+            heroList[heroID]['gold_per_min'].append(player['gold_per_min'])
+            if player['gold_per_min'] > results['max_gold_per_min'][1]:
+                results['max_gold_per_min'] = (heroName, player['gold_per_min'])
+            # list of all tower damage per heroID
+            heroList[heroID]['tower_damage'].append(player['tower_damage'])
+            if player['tower_damage'] > results['max_tower_damage'][1]:
+                results['max_tower_damage'] = (heroName, player['tower_damage'])
+            # list of all healing per heroID
+            heroList[heroID]['hero_healing'].append(player['hero_healing'])
+            if player['hero_healing'] > results['max_hero_healing'][1]:
+                results['max_hero_healing'] = (heroName, player['hero_healing'])
+
+        # counts number of times each heroID is picked or banned
+
+def findPickBans(jsonfile):
+    with open(jsonfile, 'r+') as f:
+        data = json.load(f)
+        pickbans = data['result']['picks_bans']
+        for hero in pickbans:
+            if hero['is_pick']:
+                heroList[hero['hero_id']]['picks'] += 1
             else:
-                if current_kills > heroList[heroID]['kills']:
-                    heroList[heroID]['kills'] = current_kills
+                heroList[hero['hero_id']]['bans'] += 1
 
-            # most kills across qualifiers - hero
-            if 'net_kills' not in heroList[heroID]:
-                heroList[heroID]['net_kills'] = current_kills
-            else:
-                heroList[heroID]['net_kills'] += current_kills
-
-            # most deaths - hero
-            current_deaths = player['deaths']
-            if 'deaths' not in heroList[heroID]:
-                heroList[heroID]['deaths'] = current_deaths
-            else:
-                if current_deaths > heroList[heroID]['deaths']:
-                    heroList[heroID]['deaths'] = current_deaths
-
-            # most deaths across qualifiers - hero
-            if 'net_deaths' not in heroList[heroID]:
-                heroList[heroID]['net_deaths'] = current_deaths
-            else:
-                heroList[heroID]['net_deaths'] += current_deaths
-
-            # most assists - hero
-            current_assists = player['assists']
-            if 'assists' not in heroList[heroID]:
-                heroList[heroID]['assists'] = current_assists
-            else:
-                if current_assists > heroList[heroID]['assists']:
-                    heroList[heroID]['assists'] = current_assists
-
-            # most deaths assists qualifiers - hero
-            if 'net_assists' not in heroList[heroID]:
-                heroList[heroID]['net_assists'] = current_assists
-            else:
-                heroList[heroID]['net_assists'] += current_assists
-
-            # most last hits - hero
-            current_cs = player['last_hits']
-            if 'cs' not in heroList[heroID]:
-                heroList[heroID]['cs'] = current_cs
-            else:
-                if current_cs > heroList[heroID]['cs']:
-                    heroList[heroID]['cs'] = current_cs
-
-            # highest gpm - hero
-            current_gpm = player['gold_per_min']
-            if 'gpm' not in heroList[heroID]:
-                heroList[heroID]['gpm'] = current_gpm
-            else:
-                if current_gpm > heroList[heroID]['gpm']:
-                    heroList[heroID]['gpm'] = current_gpm
-
-            # most tower damage - hero
-            current_td = player['tower_damage']
-            if 'tower_damage' not in heroList[heroID]:
-                heroList[heroID]['tower_damage'] = current_td
-            else:
-                if current_td > heroList[heroID]['tower_damage']:
-                    heroList[heroID]['tower_damage'] = current_td
-
-            # high total healing - hero
-            current_healing = player['hero_healing']
-            if 'healing' not in heroList[heroID]:
-                heroList[heroID]['healing'] = current_healing
-            else:
-                if current_healing > heroList[heroID]['healing']:
-                    heroList[heroID]['healing'] = current_healing
-
-            # most picked - hero
-            if heroList[heroID]['is_pick']:
-                if 'picks' not in heroList[heroID]:
-                    heroList[heroID]['picks'] = 1
-                else:
-                    heroList[heroID]['picks'] += 1
-            else:
-                if 'bans' not in heroList[heroID]:
-                    heroList[heroID]['bans'] = 1
-                else:
-                    heroList[heroID]['bans'] += 1
-
-            # most banned - hero
-            # most first bloods - hero
-            # number of heroes never picked or banned
-
-
-
-def findMost(heroID, key):
-    if key not in hw:
-        hw[key] = ['', 0]
-    else:
-        if key in heroList[heroID]:
-            if heroList[heroID][key] > hw[key][1]:
-                hw[key][1] = heroList[heroID][key]
-                hw[key][0] = heroList[heroID]['hero_name']
-
-
+    for k, value in heroList.items():
+        heroName = value['hero_name']
+        picks = value['picks']
+        bans  = value['bans']
+        if picks > results['max_picks'][1]:
+                results['max_picks'] = (heroName, picks)
+        if bans > results['max_bans'][1]:
+                results['max_bans'] = (heroName, bans)
 
 
 
