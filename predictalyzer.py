@@ -9,12 +9,6 @@ pp = pprint.PrettyPrinter(indent=4)
 # Steam Dev API Key
 global apiKey
 apiKey = 'D77171D2F475B06519F286FBF7485D4E'
-global max_klls_isg
-max_klls_isg = 0
-global max_gpm_isg
-max_gpm_isg = 0
-global first_blood
-first_blood = 0
 
 heroList = {}
 matchList = []
@@ -24,7 +18,7 @@ def main():
     print('Predictalyzer executing...')
 
     # generates json files for 4 pages of dotabuff
-    getMatches(0)
+    getMatches(1)
 
     # generates the dict heroList
     genHerolist()
@@ -32,9 +26,6 @@ def main():
     for filename in os.listdir("matches"):
         if filename.endswith(".json"):
             try:
-                mostKillsISG('matches/%s' %(filename))
-                maxGPMISG('matches/%s' %(filename))
-                latestFirstBlood('matches/%s' %(filename))
                 predictalyze('matches/%s' %(filename))
                 findPickBans('matches/%s' %(filename))
             except:
@@ -60,19 +51,19 @@ def main():
             if heroName not in results['never_pickban']:
                 results['never_pickban'].append(heroName)
 
-    # prints results
-    print('Most Kills in a Single Game -', max_klls_isg)
-    print('Highest GPM in a Single Game -', max_gpm_isg)
-    print('Latest First Blood - ', first_blood / 60)
-    #print('Most kills across qualifiers -', results['max_agg_kills'])
-    #print('Most deaths across qualifiers -', results['max_agg_deaths'])
-    #print('Most assists across qualifiers -', results['max_agg_assists'])
-    #print('Number of heroes never picked or banned -', len(results['never_pickban']))
-
     # creates output.json with the stats
     json.dump(heroList, open('output.json', 'w'))
+    # converts list of heroes never pick/ban into number
+    results['never_pickban'] = [len(results['never_pickban'])]
+    #pp.pprint(results)
+    with open('predictions.txt', 'w') as f:
+        for k, v in results.items():
+            f.write(k)
+            f.write(' - ')
+            f.write(str(v))
+            f.write(' ')
+            f.write('\n')
 
-    pp.pprint(results)
 
 # returns a list of matchIDs from http://dotabuff.com/matches/ti4
 # pages = int() - number of pages to get matchIDs from
@@ -116,42 +107,6 @@ def isNumber(string):
     except ValueError:
         return False
 
-# in a single game
-# most kills (both teams) - int
-def mostKillsISG(jsonfile):
-    global max_klls_isg
-    with open(jsonfile, 'r+') as f:
-        data = json.load(f)
-        players = data['result']['players']
-        total_kills = 0
-        for player in players:
-            kills = player['kills']
-            total_kills += kills
-            if total_kills > max_klls_isg:
-                max_klls_isg = total_kills
-
-# largest crit - int
-# highest gpm - int
-def maxGPMISG(jsonfile):
-    global max_gpm_isg
-    with open(jsonfile, 'r+') as f:
-        data = json.load(f)
-        players = data['result']['players']
-        for player in players:
-            heroid = player['hero_id']
-            gpm = player['gold_per_min']
-            if gpm > max_gpm_isg:
-                max_gpm_isg = gpm
-
-# latest first blood - int
-def latestFirstBlood(jsonfile):
-    global first_blood
-    with open(jsonfile, 'r+') as f:
-        data = json.load(f)
-        fbTime = data['result']['first_blood_time']
-        if fbTime > first_blood:
-            first_blood = fbTime
-
 # creates dict heroList with heroID as key
 # instantiate each dict with the hero's name
 def genHerolist():
@@ -172,6 +127,7 @@ def genHerolist():
             heroList[heroID]['hero_healing'] = []
             heroList[heroID]['picks']        = 0
             heroList[heroID]['bans']         = 0
+
     # instantiates results
     results['max_agg_kills']    = ('', 0)
     results['max_agg_deaths']   = ('', 0)
@@ -186,12 +142,17 @@ def genHerolist():
     results['max_hero_healing'] = ('', 0)
     results['max_picks']        = ('', 0)
     results['max_bans']         = ('', 0)
+    results['max_kills_isg']    = 0
+    results['first_blood']      = 0
+
 
 # gets data for hero with questions
 def predictalyze(jsonfile):
     with open(jsonfile, 'r+') as f:
         data = json.load(f)
         players = data['result']['players']
+        fbTime = data['result']['first_blood_time']
+        total_kills = 0
 
         for player in players:
             heroID = player['hero_id']
@@ -225,9 +186,16 @@ def predictalyze(jsonfile):
             heroList[heroID]['hero_healing'].append(player['hero_healing'])
             if player['hero_healing'] > results['max_hero_healing'][1]:
                 results['max_hero_healing'] = (heroName, player['hero_healing'])
+            # most kills (both teams) - int
+            total_kills += player['kills']
+            if total_kills > results['max_kills_isg']:
+                results['max_kills_isg'] = total_kills
+            # latest first blood - int
+            if (fbTime / 60) > results['first_blood']:
+                results['first_blood'] = (fbTime / 60)
 
-        # counts number of times each heroID is picked or banned
 
+# counts number of times each heroID is picked or banned
 def findPickBans(jsonfile):
     with open(jsonfile, 'r+') as f:
         data = json.load(f)

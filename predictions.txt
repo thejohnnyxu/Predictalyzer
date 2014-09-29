@@ -1,0 +1,15 @@
+max_agg_deaths - ('Treant Protector', 146) 
+max_last_hits - ('Gyrocopter', 788) 
+never_pickban - [17] 
+max_deaths - ('Ancient Apparition', 14) 
+max_bans - ('Batrider', 47) 
+max_tower_damage - ('Lycan', 10869) 
+max_assists - ('Weaver', 8) 
+max_picks - ('Treant Protector', 30) 
+max_kills_isg - 99 
+max_gold_per_min - ('Luna', 815) 
+max_hero_healing - ('Witch Doctor', 14736) 
+max_kills - ('Axe', 22) 
+first_blood - 7.716666666666667 
+max_agg_kills - ('Mirana', 179) 
+max_agg_assists - ('Mirana', 283) 
