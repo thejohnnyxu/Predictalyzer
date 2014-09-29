@@ -9,7 +9,7 @@ pp = pprint.PrettyPrinter(indent=4)
 # Steam Dev API Key
 global apiKey
 <<<<<<< HEAD
-apiKey = 'D77171D2F475B06519F286FBF7485D4E'
+apiKey = ''
 =======
 apiKey = 
 global max_klls_isg
