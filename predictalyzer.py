@@ -8,7 +8,17 @@ pp = pprint.PrettyPrinter(indent=4)
 
 # Steam Dev API Key
 global apiKey
+<<<<<<< HEAD
 apiKey = 'D77171D2F475B06519F286FBF7485D4E'
+=======
+apiKey = 
+global max_klls_isg
+max_klls_isg = 0
+global max_gpm_isg
+max_gpm_isg = 0
+global first_blood
+first_blood = 0
+>>>>>>> origin/master
 
 heroList = {}
 matchList = []
